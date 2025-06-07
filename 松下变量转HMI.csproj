@@ -1,0 +1,29 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <ApplicationIcon>myicon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained> <!-- 可选，生成自包含EXE，不依赖本地.NET运行时 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier> <!-- 根据你的目标平台选择，如win-x86, win-arm64等 -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract> <!-- 可选，确保所有内容都包含 -->
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="myicon.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+  </ItemGroup>
+
+</Project>

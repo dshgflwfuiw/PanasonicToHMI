@@ -1,0 +1,9 @@
+## .gitignore 内容
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.cache
+*.dll
+packages/
