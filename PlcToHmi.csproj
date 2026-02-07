@@ -1,0 +1,43 @@
+<!-- 
+    项目文件：定义项目的构建配置和依赖
+    这个文件告诉编译器如何编译这个项目
+-->
+<Project Sdk="Microsoft.NET.Sdk">
+ 
+  <!-- 主配置组：定义项目的基本属性 -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>                <!-- 输出类型：Windows 可执行文件 -->
+    <TargetFramework>net9.0-windows</TargetFramework>  <!-- 目标框架：.NET 9.0 Windows 版本 -->
+    <Nullable>enable</Nullable>                     <!-- 启用可空引用类型检查 -->
+    <UseWPF>true</UseWPF>                           <!-- 启用 WPF 框架 -->
+    <ImplicitUsings>enable</ImplicitUsings>        <!-- 启用隐式 using 语句 -->
+    <ApplicationIcon>myicon.ico</ApplicationIcon>  <!-- 应用程序图标 -->
+    <StartupObject>PlcToHmi.Program</StartupObject>  <!-- 程序入口类 -->
+    <AssemblyName>PlcToHmi</AssemblyName>           <!-- 程序集名称 -->
+  </PropertyGroup>
+ 
+  <!-- 图标配置组 -->
+  <PropertyGroup>
+    <ApplicationIcon>myicon.ico</ApplicationIcon>
+  </PropertyGroup>
+ 
+  <!-- 发布配置组：定义如何打包成单个可执行文件 -->
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>                           <!-- 发布为单个文件 -->
+    <SelfContained>true</SelfContained>                                    <!-- 自包含，不依赖本地.NET运行时 -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>                         <!-- 目标平台：Windows x64 -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>  <!-- 包含所有内容 -->
+  </PropertyGroup>
+ 
+  <!-- 引用的外部包和文件 -->
+  <ItemGroup>
+    <!-- 引用 CsvHelper 包，用于 CSV 文件操作 -->
+    <PackageReference Include="CsvHelper" Version="33.0.1" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <!-- 图标文件：嵌入为资源，包含在 exe 中 -->
+    <Resource Include="myicon.ico" />
+  </ItemGroup>
+ 
+</Project>
