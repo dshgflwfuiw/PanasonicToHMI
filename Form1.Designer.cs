@@ -1,4 +1,4 @@
-﻿namespace 松下变量转HMI;
+﻿namespace PanasonicToHmi;
 
 partial class Form1
 {
@@ -117,7 +117,7 @@ partial class Form1
         DragLeave += Form1_DragLeave;
         DragDrop += Form1_DragDrop;
         Name = "Form1";
-        Text = "松下变量转HMI工具";
+        Text = "PanasonicToHmi工具";
         ResumeLayout(false);
         PerformLayout();
     }

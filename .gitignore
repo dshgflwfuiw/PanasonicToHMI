@@ -1,27 +1,36 @@
-```yaml
-name: .NET
+```
+# Build artifacts and binaries
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.cache
+*.manifest
+obj/
+bin/
+Debug/
+Release/
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+# Dependencies
+packages/
+node_modules/
 
-jobs:
-  build:
+# Logs and temp files
+*.log
+*.tmp
 
-    runs-on: ubuntu-latest
+# Environment
+.env
+.env.local
+*.env.*
 
-    steps:
-    - uses: actions/checkout@v4
-    - name: Setup .NET
-      uses: actions/setup-dotnet@v4
-      with:
-        dotnet-version: 8.0.x
-    - name: Restore dependencies
-      run: dotnet restore
-    - name: Build
-      run: dotnet build --no-restore
-    - name: Test
-      run: dotnet test --no-build --verbosity normal
+# Editors
+.vs/
+.vscode/
+*.userprefs
+
+# Backup files
+*.bak
+*~
 ```

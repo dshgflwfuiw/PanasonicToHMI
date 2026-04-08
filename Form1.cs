@@ -9,7 +9,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace 松下变量转 HMI
+namespace PanasonicToHmi
 {
     public partial class Form1 : Form
     {
@@ -22,7 +22,7 @@ namespace 松下变量转 HMI
         public Form1()
         {
             InitializeComponent();
-            this.Text = "松下变量转 HMI 工具";
+            this.Text = "PLC 变量转换器";
             try
             {
                 this.Icon = new Icon(Path.Combine(Application.StartupPath, "myicon.ico"));
