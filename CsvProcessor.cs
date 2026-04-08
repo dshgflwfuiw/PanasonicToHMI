@@ -1,23 +1,62 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+
 public class CsvProcessor
 {
-    // 前缀映射
-    private static readonly Dictionary<string, string> PrefixMapping = new(StringComparer.OrdinalIgnoreCase)
+    // 前缀映射 - 松下到威纶通
+    private static readonly Dictionary<string, string> PrefixMappingWeinview = new(StringComparer.OrdinalIgnoreCase)
     {
         { "DWR", "WR" }, { "DSV", "SV" }, { "DEV", "EV" }, { "DLD", "LD" },
         { "DWX", "WX" }, { "DWY", "WY" }, { "DWL", "WL" }, { "DFL", "FL" },
         { "DDT", "DT" }
     };
 
+    // 西门子前缀映射
+    private static readonly Dictionary<string, string> PrefixMappingSiemens = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "DWR", "DB" }, { "DSV", "DBD" }, { "DEV", "DBW" }, { "DLD", "DBB" },
+        { "DWX", "IW" }, { "DWY", "QW" }, { "DWL", "M" }, { "DFL", "MD" },
+        { "DDT", "DBD" }
+    };
+
+    // 三菱前缀映射
+    private static readonly Dictionary<string, string> PrefixMappingMitsubishi = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "DWR", "D" }, { "DSV", "SD" }, { "DEV", "R" }, { "DLD", "SM" },
+        { "DWX", "X" }, { "DWY", "Y" }, { "DWL", "M" }, { "DFL", "L" },
+        { "DDT", "D" }
+    };
+
+    // 欧姆龙前缀映射
+    private static readonly Dictionary<string, string> PrefixMappingOmron = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "DWR", "W" }, { "DSV", "D" }, { "DEV", "E" }, { "DLD", "A" },
+        { "DWX", "0.00" }, { "DWY", "100.00" }, { "DWL", "M" }, { "DFL", "T" },
+        { "DDT", "D" }
+    };
+
+    // 台达前缀映射
+    private static readonly Dictionary<string, string> PrefixMappingDelta = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "DWR", "D" }, { "DSV", "S" }, { "DEV", "E" }, { "DLD", "M" },
+        { "DWX", "X" }, { "DWY", "Y" }, { "DWL", "M" }, { "DFL", "T" },
+        { "DDT", "D" }
+    };
+
     /// <summary>
-    /// 智能编码检测+转换主方法
+    /// 智能编码检测 + 转换主方法（带进度和错误处理）
     /// </summary>
-    public bool ConvertPlcCsvToHmiCsv(string plcFilepath, string hmiFilepath, Action<string>? log = null)
+    public bool ConvertPlcCsvToHmiCsv(
+        string plcFilepath, 
+        string hmiFilepath, 
+        Action<string>? log = null,
+        Action<int>? progressCallback = null,
+        Action<string>? errorCallback = null,
+        Action<int, int>? statsCallback = null,
+        string brandCode = "Panasonic FP/KW")
     {
         if (!File.Exists(plcFilepath))
         {
@@ -26,6 +65,7 @@ public class CsvProcessor
         }
 
         var hmiDataRows = new List<string[]>();
+        var errorRowsList = new List<string>();
         string[] hmiHeader = { "名称", "品牌", "起始符号", "起始地址", "", "数据类型" };
         hmiDataRows.Add(hmiHeader);
 
@@ -78,26 +118,57 @@ public class CsvProcessor
             return false;
         }
 
+        // 选择对应品牌的前缀映射表
+        var currentPrefixMapping = brandCode switch
+        {
+            "Siemens" => PrefixMappingSiemens,
+            "Mitsubishi" => PrefixMappingMitsubishi,
+            "Omron" => PrefixMappingOmron,
+            "Delta" => PrefixMappingDelta,
+            _ => PrefixMappingWeinview // 默认威纶通/松下
+        };
+
+        string hmiBrand = brandCode switch
+        {
+            "Siemens" => "Siemens",
+            "Mitsubishi" => "Mitsubishi",
+            "Omron" => "Omron",
+            "Delta" => "Delta",
+            _ => "Panasonic FP/KW"
+        };
+
+        int totalRows = 0;
+        int successCount = 0;
+
         if (fileLines.Count > 1)
         {
             fileLines.RemoveAt(0); // 跳过表头
+            totalRows = fileLines.Count;
             int rowCount = 0;
+            
             foreach (var line in fileLines)
             {
                 rowCount++;
+                
+                // 更新进度
+                int progress = (int)((rowCount * 100.0) / totalRows);
+                progressCallback?.Invoke(progress);
+
                 if (string.IsNullOrWhiteSpace(line)) continue;
 
                 string[] plcRow = line.Split(';');
                 if (plcRow.Length < 6)
                 {
-                    log?.Invoke($"跳过第 {rowCount} 行，因格式不正确或列数不足: {line}");
+                    string errorMsg = $"跳过第 {rowCount} 行，因格式不正确或列数不足：{line}";
+                    log?.Invoke(errorMsg);
+                    errorRowsList.Add($"第{rowCount}行|格式错误|{line}");
+                    errorCallback?.Invoke(errorMsg);
                     continue;
                 }
 
                 string varName = plcRow[1].Trim();
                 string simplifiedPlcAddr = plcRow[3].Trim();
                 string dataType = plcRow[4].Trim();
-                string hmiBrand = "Panasonic FP/KW";
                 string hmiSymbol = "UNKNOWN";
                 string hmiAddress = simplifiedPlcAddr;
 
@@ -106,17 +177,34 @@ public class CsvProcessor
                 {
                     string originalPrefix = match.Groups[1].Value.ToUpper();
                     hmiAddress = match.Groups[2].Value;
-                    hmiSymbol = PrefixMapping.ContainsKey(originalPrefix) ? PrefixMapping[originalPrefix] : originalPrefix;
+                    
+                    if (currentPrefixMapping.ContainsKey(originalPrefix))
+                    {
+                        hmiSymbol = currentPrefixMapping[originalPrefix];
+                    }
+                    else
+                    {
+                        hmiSymbol = originalPrefix;
+                        log?.Invoke($"警告：未知前缀 '{originalPrefix}'，保持原样");
+                    }
                 }
                 else
                 {
-                    log?.Invoke($"无法解析变量 '{varName}' 的地址 '{simplifiedPlcAddr}'。");
+                    string errorMsg = $"无法解析变量 '{varName}' 的地址 '{simplifiedPlcAddr}'。";
+                    log?.Invoke(errorMsg);
+                    errorRowsList.Add($"第{rowCount}行|地址解析失败|{line}");
+                    errorCallback?.Invoke(errorMsg);
+                    continue;
                 }
 
                 string hmiDataType = dataType.Contains("BOOL") && dataType.Length > 4 ? "BOOL" : dataType;
                 hmiDataRows.Add(new string[] { varName, hmiBrand, hmiSymbol, hmiAddress, "", hmiDataType });
+                successCount++;
             }
         }
+
+        // 更新最终统计
+        statsCallback?.Invoke(totalRows, successCount);
 
         // 检查是否有有效数据
         if (hmiDataRows.Count == 1)
@@ -132,12 +220,19 @@ public class CsvProcessor
                 foreach (var row in hmiDataRows)
                     sw.WriteLine(string.Join(",", row.Select(s => $"\"{s}\"")));
             }
-            log?.Invoke($"目标文件已成功写入: '{hmiFilepath}'");
+            log?.Invoke($"目标文件已成功写入：'{hmiFilepath}'");
+            
+            // 将错误行传递给调用者
+            foreach (var err in errorRowsList)
+            {
+                errorCallback?.Invoke(err);
+            }
+            
             return true;
         }
         catch (Exception ex)
         {
-            log?.Invoke($"写入目标文件时发生错误: {ex.Message}");
+            log?.Invoke($"写入目标文件时发生错误：{ex.Message}");
             return false;
         }
     }

@@ -1,9 +1,42 @@
-## .gitignore 内容
-bin/
-obj/
-.vs/
+```
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+x64/
+x86/
+bld/
+[Bb]in/
+[Oo]bj/
+
+# Visual Studio files
 *.user
+*.userosscache
 *.suo
-*.cache
-*.dll
+*.csproj.user
+*.vbproj.user
+*.vcxproj.user
+.vs/
+.vscode/
+
+# Test results
+*.testlog
+*.trx
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment specific settings
+.env
+.env.local
+*.env.*
+
+# Logs
+*.log
+
+# Packages
+*.nupkg
+*.snupkg
 packages/
+```
