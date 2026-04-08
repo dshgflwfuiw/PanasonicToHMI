@@ -1,42 +1,27 @@
-```
-# Build results
-[Dd]ebug/
-[Dd]ebugPublic/
-[Rr]elease/
-x64/
-x86/
-bld/
-[Bb]in/
-[Oo]bj/
+```yaml
+name: .NET
 
-# Visual Studio files
-*.user
-*.userosscache
-*.suo
-*.csproj.user
-*.vbproj.user
-*.vcxproj.user
-.vs/
-.vscode/
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
 
-# Test results
-*.testlog
-*.trx
+jobs:
+  build:
 
-# OS generated files
-.DS_Store
-Thumbs.db
+    runs-on: ubuntu-latest
 
-# Environment specific settings
-.env
-.env.local
-*.env.*
-
-# Logs
-*.log
-
-# Packages
-*.nupkg
-*.snupkg
-packages/
+    steps:
+    - uses: actions/checkout@v4
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    - name: Restore dependencies
+      run: dotnet restore
+    - name: Build
+      run: dotnet build --no-restore
+    - name: Test
+      run: dotnet test --no-build --verbosity normal
 ```
