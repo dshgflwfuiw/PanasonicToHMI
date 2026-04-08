@@ -1,36 +1,124 @@
 ```
-# Build artifacts and binaries
-*.dll
-*.exe
-*.pdb
+# Visual Studio solution and project files
+*.sln
+*.csproj
 *.user
+*.userosscache
 *.suo
-*.cache
-*.manifest
-obj/
-bin/
-Debug/
-Release/
+*.userprefs
 
-# Dependencies
-packages/
-node_modules/
+# Build results
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+build/
+bld/
+[Bb]in/
+[Oo]bj/
 
-# Logs and temp files
-*.log
+# Visual Studio Code
+.vscode/
+
+# Visual Studio IntelliSense
+*.VC.db
+*.VC.VC.opendb
+
+# MSTest test Results
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# NUnit
+*.VisualState.xml
+TestResult.xml
+nunit-*.xml
+
+# Build Results of an ATL Project
+[Dd]ebugPS/
+[Rr]eleasePS/
+dlldata.c
+
+# Benchmark Results
+BenchmarkDotNet.Artifacts/
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# StyleCop
+StyleCopReport.xml
+
+# Files built by Visual Studio
+*_i.c
+*_p.c
+*_h.h
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.pch
+*.pdb
+*.ipdb
+*.pgc
+*.pgd
+*.rsp
+*.sbr
+*.tlb
+*.tli
+*.tlh
 *.tmp
+*.tmp_proj
+*_wpftmp.csproj
+*.log
+*.vspscc
+*.vssscc
+.builds
+*.pidb
+*.svclog
+*.scc
+
+# Chutzpah Test files
+_Chutzpah*
+
+# Visual C++ cache files
+ipch/
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.VC.opendb
+
+# Windows Runtime specific cache files
+*.winmd.rd
+
+# Cache file for Package Reference Convert tool
+.prvtmp
+
+# Logs
+*.log
 
 # Environment
 .env
 .env.local
 *.env.*
 
-# Editors
-.vs/
-.vscode/
+# User-specific files
+*.user
+*.userosscache
 *.userprefs
 
-# Backup files
-*.bak
-*~
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 ```
