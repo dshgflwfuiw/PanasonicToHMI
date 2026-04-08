@@ -1,6 +1,7 @@
 using System.Windows.Forms;
 using System;
-namespace 松下变量转HMI;
+
+namespace PanasonicToHmi;
 
 static class Program
 {
