@@ -7,3 +7,27 @@ obj/
 *.cache
 *.dll
 packages/
+
+# Visual Studio
+*.vcxproj.user
+*.dbmdl
+
+# Rider
+.idea/
+
+# Publish output
+publish/
+
+# Temp build artifacts
+temp_build/
+
+# NuGet
+*.nupkg
+packages.lock.json
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
