@@ -28,7 +28,7 @@ namespace PlcToHmi
             try
             {
                 // 从嵌入的资源中加载图标
-                var stream = Application.GetResourceStream(new Uri("pack://application:,,,/myicon.ico"));
+                var stream = Application.GetResourceStream(new Uri("pack://application:,,,/favicon.ico"));
                 if (stream != null && stream.Stream != null)
                 {
                     var bitmap = new System.Windows.Media.Imaging.BitmapImage();
@@ -50,23 +50,13 @@ namespace PlcToHmi
         // 参数 isWarning: 是否是警告消息（默认 false）
         private void LogMessage(string message, bool isError = false, bool isWarning = false)
         {
-            // Dispatcher.Invoke 确保在主线程中更新界面
-            // 如果直接从后台线程修改界面会报错
             Dispatcher.Invoke(() =>
             {
-                // 获取当前时间，格式为 时:分:秒
                 string timestamp = DateTime.Now.ToString("HH:mm:ss");
-                // 根据消息类型确定日志级别标签
                 string level = isError ? "ERROR" : (isWarning ? "WARN" : "INFO");
-                // 根据消息类型确定颜色（错误红色，警告橙色，正常绿色）
-                string color = isError ? "#E74C3C" : (isWarning ? "#F39C12" : "#27AE60");
-                
-                // 在日志文本框中添加时间戳（灰色）
-                logText.Inlines.Add(new System.Windows.Documents.Run($"{timestamp} - ") { Foreground = System.Windows.Media.Brushes.Gray });
-                // 添加日志级别标签（彩色）
-                logText.Inlines.Add(new System.Windows.Documents.Run($"[{level}] ") { Foreground = new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(color)) });
-                // 添加消息内容（默认颜色）
-                logText.Inlines.Add(new System.Windows.Documents.Run(message + "\n"));
+                string logLine = $"{timestamp} - [{level}] {message}{Environment.NewLine}";
+                logText.AppendText(logLine);
+                logText.ScrollToEnd();
             });
         }
 
@@ -184,7 +174,7 @@ namespace PlcToHmi
             string hmiCsvFilePath = Path.Combine(inputDirectory, outputFileName);
 
             // 清空日志区域
-            logText.Inlines.Clear();
+            logText.Clear();
             // 记录选择的PLC品牌
             LogMessage($"选择的PLC品牌: {brandName} ({selectedBrand})");
             // 记录输入文件路径
@@ -215,9 +205,37 @@ namespace PlcToHmi
                     processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
                 );
             }
+           else if (selectedBrand == "Xinjie")
+           {
+               var processor = new XinjieCsvProcessor();
+               success = await Task.Run(() =>
+                   processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
+               );
+           }
+            else if (selectedBrand == "Delta")
+            {
+                var processor = new DeltaCsvProcessor();
+                success = await Task.Run(() =>
+                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
+                );
+            }
+            else if (selectedBrand == "Keyence")
+            {
+                var processor = new KeyenceCsvProcessor();
+                success = await Task.Run(() =>
+                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
+                );
+            }
+            else if (selectedBrand == "Huichuan")
+            {
+                var processor = new HuichuanCsvProcessor();
+                success = await Task.Run(() =>
+                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
+                );
+            }
 
-            // 检查转换是否成功
-            if (success)
+           // 检查转换是否成功
+           if (success)
             {
                 // 记录成功日志
                 LogMessage("文件转换成功完成。");
@@ -242,7 +260,7 @@ namespace PlcToHmi
         private void btnClearLog_Click(object sender, RoutedEventArgs e)
         {
             // 清空日志文本框的所有内容
-            logText.Inlines.Clear();
+            logText.Clear();
         }
     }
 }

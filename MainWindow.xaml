@@ -7,7 +7,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="plcTOHmi"
         Width="900"
-        Height="600"
+        Height="730"
         MinWidth="700"
         MinHeight="500"
         WindowStartupLocation="CenterScreen"
@@ -128,11 +128,15 @@
                                 Foreground="#2C3E50"
                                 VerticalAlignment="Center"/>
                      <ComboBox Name="cmbPlcBrand"
-                               Width="200"
+                               Width="220"
                                Margin="10,0,0,0"
                                FontSize="14">
                          <ComboBoxItem Content="松下" Tag="Panasonic" IsSelected="True"/>
                          <ComboBoxItem Content="三菱" Tag="Mitsubishi"/>
+                         <ComboBoxItem Content="信捷" Tag="Xinjie"/>
+                         <ComboBoxItem Content="台达" Tag="Delta"/>
+                         <ComboBoxItem Content="基恩士" Tag="Keyence"/>
+                         <ComboBoxItem Content="汇川" Tag="Huichuan"/>
                      </ComboBox>
                  </StackPanel>
                 
@@ -151,7 +155,7 @@
                         AllowDrop="True"
                         Drop="Border_Drop"
                         DragEnter="Border_DragEnter"
-                        DragLeave="Border_DragLeave">
+                        DragLeave="Border_DragLeave" Height="233">
                     <StackPanel>
                         <!-- 文件夹图标（使用 emoji） -->
                         <TextBlock Text="📁"
@@ -176,7 +180,7 @@
         </Border>
         
         <!-- 第二行：日志区域卡片 -->
-        <Border Grid.Row="1" Style="{StaticResource CardStyle}">
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,10,0,0">
             <Grid>
                 <!-- 定义两行：标题栏和日志内容区 -->
                 <Grid.RowDefinitions>
@@ -235,20 +239,21 @@
                         CornerRadius="8"
                         Padding="15">
                     <!-- ScrollViewer：滚动视图容器，需要时显示滚动条 -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <!-- 
-                            TextBlock：文本块，用于显示多行日志
-                            - Name="logText" 控件名称，代码中通过这个名字访问
-                            - TextWrapping="Wrap" 文字自动换行
-                            - LineHeight="1.5" 行高
-                        -->
-                        <TextBlock Name="logText"
-                                   TextWrapping="Wrap"
-                                   FontFamily="Consolas"
-                                   FontSize="12"
-                                   Foreground="#2C3E50"
-                                   LineHeight="1.5"/>
-                    </ScrollViewer>
+                        <!-- TextBox：用于高性能日志输出，支持自动滚动和大文本量 -->
+                        <TextBox Name="logText"
+                                 IsReadOnly="True"
+                                 AcceptsReturn="True"
+                                 TextWrapping="Wrap"
+                                 VerticalScrollBarVisibility="Auto"
+                                 HorizontalScrollBarVisibility="Auto"
+                                 FontFamily="Consolas"
+                                 FontSize="12"
+                                 Foreground="#2C3E50"
+                                 Background="#F8F9FA"
+                                 BorderThickness="0"
+                                 Padding="8"
+                                 VerticalAlignment="Stretch"
+                                 HorizontalAlignment="Stretch"/>
                 </Border>
             </Grid>
         </Border>

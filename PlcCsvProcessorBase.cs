@@ -11,6 +11,8 @@ using System.Text.RegularExpressions;
 /// </summary>
 public abstract class PlcCsvProcessorBase
 {
+    private char _detectedDelimiter = ';';
+
     /// <summary>
     /// 品牌名称
     /// </summary>
@@ -29,10 +31,11 @@ public abstract class PlcCsvProcessorBase
     /// <summary>
     /// 尝试的编码列表
     /// </summary>
-    protected virtual Encoding[] EncodingsToTry => new[]
-    {
-        Encoding.GetEncoding("GBK"),
-        Encoding.GetEncoding("gb2312"),
+   protected virtual Encoding[] EncodingsToTry => new[]
+   {
+       Encoding.GetEncoding("GBK"),
+       Encoding.GetEncoding("gb18030"),
+       Encoding.GetEncoding("gb2312"),
         new UTF8Encoding(true),
         new UTF8Encoding(false),
         Encoding.GetEncoding("big5"),
@@ -80,51 +83,167 @@ public abstract class PlcCsvProcessorBase
     /// </summary>
     private List<string>? TryReadFileWithEncoding(string filepath, Action<string>? log)
     {
+        var delimiterCandidates = new[] { ';', ',', '\t' };
+        var headerKeywords = new[] { "名称", "变量", "地址", "Name", "Address" };
+
         foreach (var encoding in EncodingsToTry)
         {
             try
             {
                 log?.Invoke($"尝试使用编码 '{encoding.WebName}' 打开源文件。");
                 var tempLines = File.ReadAllLines(filepath, encoding);
-                
-                if (tempLines.Length > 0 && Regex.IsMatch(tempLines[0], @"[\u4e00-\u9fa5]"))
+
+                if (tempLines == null || tempLines.Length == 0)
                 {
-                    log?.Invoke($"编码 '{encoding.WebName}' 验证成功：检测到中文字符。");
+                    log?.Invoke($"编码 '{encoding.WebName}' 读取成功，但文件为空，继续尝试下一个编码...");
+                    continue;
+                }
+
+                string headerLine = tempLines[0];
+                char bestDelimiter = ';';
+                int bestScore = -1;
+                int bestValidRows = 0;
+                int bestHeaderCount = 0;
+                bool bestHasHeaders = false;
+
+                foreach (var delimiter in delimiterCandidates)
+                {
+                    var headerParts = headerLine.Split(new[] { delimiter }, StringSplitOptions.None)
+                        .Select(h => h.Trim())
+                        .ToArray();
+
+                    if (headerParts.Length < 2)
+                    {
+                        continue;
+                    }
+
+                    bool hasHeaders = headerParts.Any(p => headerKeywords.Any(k => p.IndexOf(k, StringComparison.OrdinalIgnoreCase) >= 0));
+                    int validRows = tempLines.Skip(1).Count(line =>
+                        !string.IsNullOrWhiteSpace(line) &&
+                        line.Split(new[] { delimiter }, StringSplitOptions.None).Length >= 6);
+
+                    int score = validRows + (hasHeaders ? 10 : 0) + headerParts.Length;
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestDelimiter = delimiter;
+                        bestValidRows = validRows;
+                        bestHeaderCount = headerParts.Length;
+                        bestHasHeaders = hasHeaders;
+                    }
+                }
+
+                if (bestScore >= 0 && (bestValidRows > 0 || bestHasHeaders || bestHeaderCount >= 6))
+                {
+                    _detectedDelimiter = bestDelimiter;
+                    log?.Invoke($"编码 '{encoding.WebName}' 验证成功：分隔符='{bestDelimiter}'，表头列数={bestHeaderCount}，有效数据行={bestValidRows}。");
                     return new List<string>(tempLines);
                 }
-                else if (tempLines.Length <= 1)
+
+                if (tempLines.Length == 1)
                 {
-                    log?.Invoke($"文件为空或行数过少，假定编码 '{encoding.WebName}' 正确。");
+                    _detectedDelimiter = bestDelimiter;
+                    log?.Invoke($"编码 '{encoding.WebName}' 读取成功且仅一行，接受该编码。");
                     return new List<string>(tempLines);
                 }
-                else
-                {
-                    log?.Invoke($"编码 '{encoding.WebName}' 读取成功但内容验证失败，继续尝试...");
-                }
+
+                log?.Invoke($"编码 '{encoding.WebName}' 读取成功但行格式不符，继续尝试...");
             }
-            catch
+            catch (Exception ex)
             {
-                log?.Invoke($"编码 '{encoding.WebName}' 解码失败，尝试下一个...");
+                log?.Invoke($"编码 '{encoding.WebName}' 解码失败：{ex.Message}，尝试下一个...");
             }
         }
 
         return null;
     }
 
-    /// <summary>
-    /// 处理数据行
-    /// </summary>
-    private void ProcessDataLines(List<string> fileLines, List<string[]> hmiDataRows, Action<string>? log)
+    private static readonly string[] NameColumnCandidates =
     {
-        fileLines.RemoveAt(0);
+        "名称", "变量名称", "VARNAME", "VAR_NAME", "NAME", "变量"
+    };
+
+    private static readonly string[] AddressColumnCandidates =
+    {
+        "地址", "PLC地址", "映射地址", "PLC Address", "Address", "映射"
+    };
+
+    private static readonly string[] DataTypeColumnCandidates =
+    {
+        "数据类型", "类型", "Type", "DataType", "DType", "DTYPE"
+    };
+
+    private static char DetectDelimiter(string headerLine)
+    {
+        if (headerLine.Contains(';')) return ';';
+        if (headerLine.Contains(',')) return ',';
+        if (headerLine.Contains('\t')) return '\t';
+        return ';';
+    }
+
+    /// <summary>
+    /// 查找符合条件的列索引
+    /// </summary>
+    private static int FindColumnIndex(string[] columns, string[] candidates)
+    {
+        for (int i = 0; i < columns.Length; i++)
+        {
+            if (candidates.Any(candidate =>
+                columns[i].Equals(candidate, StringComparison.OrdinalIgnoreCase)))
+            {
+                return i;
+            }
+        }
+
+        for (int i = 0; i < columns.Length; i++)
+        {
+            if (candidates.Any(candidate =>
+                columns[i].IndexOf(candidate, StringComparison.OrdinalIgnoreCase) >= 0))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+   /// 处理数据行
+   /// </summary>
+   protected virtual void ProcessDataLines(List<string> fileLines, List<string[]> hmiDataRows, Action<string>? log)
+    {
+        char delimiter = _detectedDelimiter;
+        int headerIndex = FindHeaderIndex(fileLines, delimiter, out var headerColumns, log);
+
+        if (headerIndex < 0 || headerColumns == null)
+        {
+            log?.Invoke("未能识别文件表头，使用默认列索引进行解析。");
+            headerColumns = fileLines[0].Split(new[] { delimiter }, StringSplitOptions.None)
+                .Select(c => c.Trim()).ToArray();
+            headerIndex = 0;
+        }
+
+        int nameIndex = FindColumnIndex(headerColumns, NameColumnCandidates);
+        int addressIndex = FindColumnIndex(headerColumns, AddressColumnCandidates);
+        int dataTypeIndex = FindColumnIndex(headerColumns, DataTypeColumnCandidates);
+
+        if (nameIndex < 0) nameIndex = 1;
+        if (addressIndex < 0) addressIndex = 3;
+        if (dataTypeIndex < 0) dataTypeIndex = 4;
+
         int rowCount = 0;
-        
-        foreach (var line in fileLines)
+        for (int i = headerIndex + 1; i < fileLines.Count; i++)
         {
             rowCount++;
+            var line = fileLines[i];
             if (string.IsNullOrWhiteSpace(line)) continue;
 
-            var row = ProcessSingleLine(line, rowCount, log);
+            if (IsSectionHeaderLine(line, delimiter))
+            {
+                continue;
+            }
+
+            var row = ProcessSingleLine(line, rowCount, delimiter, nameIndex, addressIndex, dataTypeIndex, log);
             if (row != null)
             {
                 hmiDataRows.Add(row);
@@ -132,26 +251,69 @@ public abstract class PlcCsvProcessorBase
         }
     }
 
-    /// <summary>
-    /// 处理单行数据
-    /// </summary>
-    private string[]? ProcessSingleLine(string line, int rowCount, Action<string>? log)
+    private static bool IsSectionHeaderLine(string line, char delimiter)
     {
-        string[] plcRow = line.Split(';');
-        
-        if (plcRow.Length < 6)
+        var firstCell = line.Split(new[] { delimiter }, StringSplitOptions.None)[0].Trim();
+        return firstCell.Equals("TYPENAME", StringComparison.OrdinalIgnoreCase)
+               || firstCell.Equals("VARNUMBER", StringComparison.OrdinalIgnoreCase)
+               || firstCell.Equals("SECTION", StringComparison.OrdinalIgnoreCase)
+               || firstCell.Equals("ST_TYPE", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int FindHeaderIndex(List<string> fileLines, char delimiter, out string[]? headerColumns, Action<string>? log)
+    {
+        headerColumns = null;
+        int maxScan = Math.Min(fileLines.Count, 20);
+
+        for (int i = 0; i < maxScan; i++)
+        {
+            var line = fileLines[i];
+            if (string.IsNullOrWhiteSpace(line)) continue;
+
+            var columns = line.Split(new[] { delimiter }, StringSplitOptions.None)
+                .Select(c => c.Trim()).ToArray();
+
+            int nameIndex = FindColumnIndex(columns, NameColumnCandidates);
+            int addressIndex = FindColumnIndex(columns, AddressColumnCandidates);
+            if (nameIndex >= 0 && addressIndex >= 0)
+            {
+                headerColumns = columns;
+                if (i > 0)
+                {
+                    log?.Invoke($"在第 {i + 1} 行找到表头，列索引: 名称={nameIndex}, 地址={addressIndex}。");
+                }
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+   /// 处理单行数据
+   /// </summary>
+   protected virtual string[]? ProcessSingleLine(string line, int rowCount, char delimiter, int nameIndex, int addressIndex, int dataTypeIndex, Action<string>? log)
+    {
+        string[] plcRow = line.Split(new[] { delimiter }, StringSplitOptions.None);
+
+        if (plcRow.Length <= Math.Max(nameIndex, Math.Max(addressIndex, dataTypeIndex)))
         {
             log?.Invoke($"跳过第 {rowCount} 行，因格式不正确或列数不足: {line}");
             return null;
         }
 
-        string varName = plcRow[1].Trim();
-        string plcAddr = plcRow[3].Trim();
-        string dataType = plcRow[4].Trim();
-        
+        string varName = plcRow[nameIndex].Trim();
+        string plcAddr = plcRow[addressIndex].Trim();
+        string dataType = plcRow[dataTypeIndex].Trim();
+
+        if (string.IsNullOrWhiteSpace(plcAddr))
+        {
+            return null;
+        }
+
         var (hmiSymbol, hmiAddress) = ParseAddress(plcAddr, varName, log);
         string hmiDataType = NormalizeDataType(dataType);
-        
+
         return new[] { varName, BrandName, hmiSymbol, hmiAddress, "", hmiDataType };
     }
 
@@ -187,9 +349,9 @@ public abstract class PlcCsvProcessorBase
     }
 
     /// <summary>
-    /// 写入输出文件
-    /// </summary>
-    private bool WriteOutputFile(string filepath, List<string[]> dataRows, Action<string>? log)
+   /// 写入输出文件
+   /// </summary>
+   protected virtual bool WriteOutputFile(string filepath, List<string[]> dataRows, Action<string>? log)
     {
         try
         {

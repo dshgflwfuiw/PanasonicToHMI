@@ -11,14 +11,14 @@
     <Nullable>enable</Nullable>                     <!-- 启用可空引用类型检查 -->
     <UseWPF>true</UseWPF>                           <!-- 启用 WPF 框架 -->
     <ImplicitUsings>enable</ImplicitUsings>        <!-- 启用隐式 using 语句 -->
-    <ApplicationIcon>myicon.ico</ApplicationIcon>  <!-- 应用程序图标 -->
+    <ApplicationIcon>favicon.ico</ApplicationIcon>  <!-- 应用程序图标 -->
     <StartupObject>PlcToHmi.Program</StartupObject>  <!-- 程序入口类 -->
     <AssemblyName>PlcToHmi</AssemblyName>           <!-- 程序集名称 -->
   </PropertyGroup>
  
   <!-- 图标配置组 -->
   <PropertyGroup>
-    <ApplicationIcon>myicon.ico</ApplicationIcon>
+    <ApplicationIcon>favicon.ico</ApplicationIcon>
   </PropertyGroup>
  
   <!-- 发布配置组：定义如何打包成单个可执行文件 -->
@@ -37,7 +37,14 @@
   
   <ItemGroup>
     <!-- 图标文件：嵌入为资源，包含在 exe 中 -->
-    <Resource Include="myicon.ico" />
+    <Resource Include="favicon.ico" />
+  </ItemGroup>
+
+  <!-- 排除临时构建产物目录，防止重复的源文件被包含进编译造成重复定义 -->
+  <ItemGroup>
+    <Compile Remove="temp_build\**\*.cs" />
+    <EmbeddedResource Remove="temp_build\**\*" />
+    <None Remove="temp_build\**\*" />
   </ItemGroup>
  
 </Project>
