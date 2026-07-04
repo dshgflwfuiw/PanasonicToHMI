@@ -120,6 +120,16 @@
                             Foreground="#7F8C8D"
                             HorizontalAlignment="Center"
                             Margin="0,0,0,15"/>
+                 <!-- 使用帮助：折叠面板，提供简要使用说明 -->
+                 <Expander Header="使用帮助" IsExpanded="False" Margin="0,0,0,15" HorizontalAlignment="Center" Width="760">
+                    <StackPanel Margin="8">
+                        <TextBlock Text="操作步骤：" FontWeight="SemiBold"/>
+                         <TextBlock Text="1. 选择PLC品牌； 2. 拖拽或点击“选择文件开始转换”选择一个或多个CSV文件； 3. 程序会在源文件目录生成合并后的输出文件。" TextWrapping="Wrap" Margin="0,4,0,6"/>
+                         <TextBlock Text="注意：" FontWeight="SemiBold"/>
+                        <TextBlock Text="本项目只适用于威纶通触摸屏,其他品牌概不支持。" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                        <TextBlock Text="支持品牌：松下、三菱、信捷、台达、基恩士、汇川。输出文件以 _Merged_品牌_HMI变量.csv 命名。若出现编码问题，请确保CSV为 UTF-8 或 GBK。" TextWrapping="Wrap"/>
+                    </StackPanel>
+                 </Expander>
                  
                  <!-- PLC品牌选择 -->
                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,0,0,20">

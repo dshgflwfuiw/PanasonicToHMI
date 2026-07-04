@@ -1,5 +1,9 @@
 // 引入系统命名空间，提供基础类型和工具
 using System;
+// 集合和并行任务相关
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 // 文件操作相关的类
 using System.IO;
 // 文本编码相关的类
@@ -65,13 +69,15 @@ namespace PlcToHmi
         // e: 事件参数
         private async void btnProcess_Click(object sender, RoutedEventArgs e)
         {
-            // 创建文件选择对话框
+            // 创建文件选择对话框（允许多选）
             OpenFileDialog ofd = new OpenFileDialog
             {
                 // 对话框标题
                 Title = "请选择PLC变量CSV文件",
                 // 文件过滤器：只显示 CSV 文件和所有文件
                 Filter = "CSV 文件 (*.csv)|*.csv|所有文件 (*.*)|*.*",
+                // 允许多文件选择
+                Multiselect = true,
                 // 记住上次打开的目录
                 RestoreDirectory = true
             };
@@ -80,7 +86,7 @@ namespace PlcToHmi
             if (ofd.ShowDialog() == true)
             {
                 // await 等待文件转换完成，不会卡死界面
-                await ProcessFile(ofd.FileName);
+                await ProcessFile(ofd.FileNames);
             }
         }
 
@@ -92,11 +98,12 @@ namespace PlcToHmi
             {
                 // 获取拖放的文件列表
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-                // 检查是否有文件且文件后缀是 csv
-                if (files.Length > 0 && files[0].EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+                // 过滤出 CSV 文件
+                var csvFiles = files.Where(f => f.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)).ToArray();
+                if (csvFiles.Length > 0)
                 {
-                    // 处理第一个文件
-                    await ProcessFile(files[0]);
+                    // 处理所有选中的 CSV 文件，合并为一个输出
+                    await ProcessFile(csvFiles);
                 }
                 else
                 {
@@ -143,9 +150,9 @@ namespace PlcToHmi
             }
         }
 
-        // 处理文件转换的核心方法
-        // plcCsvFilePath: 输入的 CSV 文件完整路径
-        private async Task ProcessFile(string plcCsvFilePath)
+        // 处理文件转换的核心方法（支持多个输入文件，生成单个输出）
+        // plcCsvFilePaths: 输入的 CSV 文件完整路径数组
+        private async Task ProcessFile(string[] plcCsvFilePaths)
         {
             // 获取选择的PLC品牌
             string selectedBrand = "Panasonic";
@@ -157,8 +164,8 @@ namespace PlcToHmi
                 brandName = selectedItem.Content.ToString() ?? "松下";
             }
 
-            // 获取输入文件所在目录
-            string? inputDirectory = Path.GetDirectoryName(plcCsvFilePath);
+            // 获取输入文件所在目录（使用第一个文件所在目录）
+            string? inputDirectory = Path.GetDirectoryName(plcCsvFilePaths[0]);
             // 检查目录是否有效
             if (inputDirectory == null)
             {
@@ -166,10 +173,10 @@ namespace PlcToHmi
                 LogMessage("无法获取文件目录路径。", isError: true);
                 return;
             }
-            // 获取不含扩展名的文件名（例如：test.csv -> test）
-            string inputFileNameWithoutExt = Path.GetFileNameWithoutExtension(plcCsvFilePath);
-            // 构造输出文件名（原文件名 + 品牌名 + _HMI变量.csv）
-            string outputFileName = $"{inputFileNameWithoutExt}_{brandName}_HMI变量.csv";
+            // 获取不含扩展名的第一个文件名（用于输出文件命名）
+            string inputFileNameWithoutExt = Path.GetFileNameWithoutExtension(plcCsvFilePaths[0]);
+            // 构造输出文件名（第一个源文件名 + _Merged_ + 品牌名 + _HMI变量.csv）
+            string outputFileName = $"{inputFileNameWithoutExt}_Merged_{brandName}_HMI变量.csv";
             // 拼接输出文件的完整路径
             string hmiCsvFilePath = Path.Combine(inputDirectory, outputFileName);
 
@@ -177,8 +184,8 @@ namespace PlcToHmi
             logText.Clear();
             // 记录选择的PLC品牌
             LogMessage($"选择的PLC品牌: {brandName} ({selectedBrand})");
-            // 记录输入文件路径
-            LogMessage($"已选择源文件: {plcCsvFilePath}");
+            // 记录输入文件路径（列出所有已选择文件）
+            LogMessage($"已选择源文件 ({plcCsvFilePaths.Length}) : {string.Join(", ", plcCsvFilePaths.Select(f => Path.GetFileName(f)))}");
             // 记录输出文件路径
             LogMessage($"目标文件将保存为: {hmiCsvFilePath}");
             // 记录转换开始
@@ -189,65 +196,85 @@ namespace PlcToHmi
             // 修改按钮文字提示用户正在处理
             btnProcess.Content = "正在转换中，请稍候...";
 
-            // 根据选择的品牌创建对应的处理器实例
-            bool success = false;
+            // 根据选择的品牌创建对应的处理器实例（一个实例用于处理所有输入文件）
+            PlcCsvProcessorBase? processor = null;
             if (selectedBrand == "Panasonic")
             {
-                var processor = new PanasonicCsvProcessor();
-                success = await Task.Run(() =>
-                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-                );
+                processor = new PanasonicCsvProcessor();
             }
             else if (selectedBrand == "Mitsubishi")
             {
-                var processor = new MitsubishiCsvProcessor();
-                success = await Task.Run(() =>
-                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-                );
+                processor = new MitsubishiCsvProcessor();
             }
            else if (selectedBrand == "Xinjie")
            {
-               var processor = new XinjieCsvProcessor();
-               success = await Task.Run(() =>
-                   processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-               );
+               processor = new XinjieCsvProcessor();
            }
             else if (selectedBrand == "Delta")
             {
-                var processor = new DeltaCsvProcessor();
-                success = await Task.Run(() =>
-                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-                );
+                processor = new DeltaCsvProcessor();
             }
             else if (selectedBrand == "Keyence")
             {
-                var processor = new KeyenceCsvProcessor();
-                success = await Task.Run(() =>
-                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-                );
+                processor = new KeyenceCsvProcessor();
             }
             else if (selectedBrand == "Huichuan")
             {
-                var processor = new HuichuanCsvProcessor();
-                success = await Task.Run(() =>
-                    processor.ConvertPlcCsvToHmiCsv(plcCsvFilePath, hmiCsvFilePath, msg => LogMessage(msg))
-                );
+                processor = new HuichuanCsvProcessor();
             }
 
-           // 检查转换是否成功
-           if (success)
+            bool success = false;
+            if (processor == null)
             {
-                // 记录成功日志
-                LogMessage("文件转换成功完成。");
-                // 弹出成功提示框
-                MessageBox.Show($"文件转换成功！\n输出文件已保存至:\n{hmiCsvFilePath}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                LogMessage($"未找到对应的处理器: {selectedBrand}", isError: true);
             }
             else
             {
-                // 记录失败日志
-                LogMessage("文件转换失败，详情请查看以上日志。", isError: true);
-                // 弹出失败提示框
-                MessageBox.Show("文件转换失败，请查看日志获取详细信息。", "失败", MessageBoxButton.OK, MessageBoxImage.Error);
+                // 处理每个文件并汇总结果
+                var allRows = new List<string[]>();
+                foreach (var file in plcCsvFilePaths)
+                {
+                    LogMessage($"解析文件: {file}");
+                    var rows = await Task.Run(() => processor.ParsePlcCsvToHmiRows(file, msg => LogMessage(msg)));
+                    if (rows != null && rows.Count > 0)
+                    {
+                        allRows.AddRange(rows);
+                        LogMessage($"已将 {rows.Count} 行添加到汇总结果。");
+                    }
+                    else
+                    {
+                        LogMessage($"文件 {file} 未返回可用数据，已跳过。", isWarning: true);
+                    }
+                }
+
+                if (allRows.Count == 0)
+                {
+                    LogMessage("未从任何输入文件中提取到有效数据，未生成输出文件。", isError: true);
+                }
+                else
+                {
+                    // 写入单个输出文件，添加表头
+                    var outputRows = new List<string[]>();
+                    outputRows.Add(new[] { "名称", "品牌", "起始符号", "起始地址", "", "数据类型" });
+                    outputRows.AddRange(allRows);
+
+                    try
+                    {
+                        using (StreamWriter sw = new(hmiCsvFilePath, false, new UTF8Encoding(true)))
+                        {
+                            foreach (var row in outputRows)
+                                sw.WriteLine(string.Join(",", row.Select(s => $"\"{s}\"")));
+                        }
+                        success = true;
+                        LogMessage("文件转换成功完成。");
+                        MessageBox.Show($"文件转换成功！\n输出文件已保存至:\n{hmiCsvFilePath}", "成功", MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogMessage($"写入输出文件失败: {ex.Message}", isError: true);
+                        MessageBox.Show("写入输出文件失败，请查看日志获取详细信息。", "失败", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                }
             }
 
             // 恢复按钮可用状态

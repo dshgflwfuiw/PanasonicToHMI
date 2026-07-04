@@ -19,10 +19,14 @@ public class XinjieCsvProcessor : PlcCsvProcessorBase
         { "D", "D" },
         { "X", "X" },
         { "Y", "Y" },
+        { "C", "C" },
+        { "CD", "CD" },
+        { "T", "T" },
+        { "TD", "TD" },
         { "HM", "HM" },
         { "HD", "HD" },
-        { "HX", "HX" },
-        { "HY", "HY" },
+        { "HCD", "HCD" },
+        { "HTD", "HTD" },
         { "X_Extension", "X_Extension" },
         { "Y_Extension", "Y_Extension" },
     };
@@ -48,14 +52,20 @@ public class XinjieCsvProcessor : PlcCsvProcessorBase
             return null;
         }
 
-        // 过滤范围地址（包含 [] 或 , 的地址）
-        if (plcAddr.Contains('[') || plcAddr.Contains(']') || plcAddr.Contains(','))
+        // 使用基类的地址跳过策略（包含 [] 、, 以及关键词 ARRAY）
+        if (ShouldSkipAddress(plcAddr, varName, log))
         {
-            log?.Invoke($"跳过第 {rowCount} 行，范围地址不支持: {plcAddr}");
             return null;
         }
 
         string dataType = plcRow[dataTypeIndex].Trim();
+
+        // 如果数据类型包含 ARRAY，则视为不支持的数组类型，跳过该行
+        if (!string.IsNullOrEmpty(dataType) && dataType.IndexOf("ARRAY", StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            log?.Invoke($"跳过第 {rowCount} 行，数据类型包含不支持的关键字 'ARRAY': {dataType}");
+            return null;
+        }
         var (hmiSymbol, hmiAddress) = ParseAddress(plcAddr, varName, log);
 
         if (hmiSymbol == "UNKNOWN" || string.IsNullOrEmpty(hmiSymbol))
@@ -84,11 +94,11 @@ public class XinjieCsvProcessor : PlcCsvProcessorBase
         var numberText = match.Groups[2].Value;
         var number = int.Parse(numberText);
 
-        if ((prefix == "X" || prefix == "HX") && number >= 10000)
+        if (prefix == "X"  && number >= 10000)
         {
             prefix = "X_Extension";
         }
-        else if ((prefix == "Y" || prefix == "HY") && number >= 10000)
+        else if (prefix == "Y"  && number >= 10000)
         {
             prefix = "Y_Extension";
         }
